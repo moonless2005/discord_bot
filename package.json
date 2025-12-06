@@ -2,7 +2,13 @@
   "name": "notify-bot",
   "version": "1.0.0",
   "main": "index.js",
+  "scripts": {
+    "start": "node index.js" 
+    // Thêm lệnh start để Render biết cách chạy file chính
+  },
   "dependencies": {
-    "discord.js": "14.15.3"
+    "discord.js": "14.15.3",
+    "express": "^4.18.2" 
+    // Thêm express vào đây
   }
 }
