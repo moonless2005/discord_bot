@@ -8,12 +8,12 @@ const client = new Client({
 
 client.on('guildMemberAdd', member => {
     const channel = member.guild.systemChannel;
-    if (channel) channel.send(`👋 ${member.user.tag} vừa vào server!`);
+    if (channel) channel.send(`Hoan nghênh ${member.user.tag} gia nhập Nghịch Nguyệt Thần Cung!`);
 });
 
 client.on('guildMemberRemove', member => {
     const channel = member.guild.systemChannel;
-    if (channel) channel.send(`👋 ${member.user.tag} đã rời server!`);
+    if (channel) channel.send(` ${member.user.tag} đã rời đi vì sự ô uế của bản thân!`);
 });
 
 client.login(process.env.TOKEN);
