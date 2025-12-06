@@ -17,3 +17,18 @@ client.on('guildMemberRemove', member => {
 });
 
 client.login(process.env.TOKEN);
+const express = require('express');
+const app = express();
+
+// Cổng HTTP mà Render gán cho dịch vụ (thường là 10000)
+const PORT = process.env.PORT || 3000; 
+
+// Tạo một endpoint cơ bản để Render kiểm tra (Health Check)
+app.get('/', (req, res) => {
+  res.send('Discord Bot is running and waiting for events!');
+});
+
+// Khởi động server HTTP
+app.listen(PORT, () => {
+  console.log(`Server is listening on port ${PORT}`);
+});
