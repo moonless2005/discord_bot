@@ -26,7 +26,7 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
         console.log(`Đang bắt đầu đăng ký ${commands.length} lệnh ứng dụng (/)`);
 
         const data = await rest.put(
-            Routes.applicationGuildCommands(CLIENT_ID, 'ID_SERVER_CỦA_BẠN_VÀO_ĐÂY'),
+            Routes.applicationGuildCommands(CLIENT_ID, '1398654698671837304'),
             { body: commands },
         );
 
