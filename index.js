@@ -60,72 +60,93 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
 	console.log(`Server is listening on port ${PORT}`);
 });
-// === 6. XỬ LÝ LỆNH XO 3x3 ===
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
+
 const games = new Map(); // lưu game theo channel
 
 client.on('messageCreate', async message => {
     if (message.author.bot) return;
 
-    // Lệnh bắt đầu game
+    // Bắt đầu game
     if (message.content.startsWith('!xo')) {
         const opponent = message.mentions.users.first();
         if (!opponent) return message.reply("Nhập người chơi để bắt đầu!");
         if (opponent.id === message.author.id) return message.reply("Bạn không thể chơi với chính mình!");
 
-        const board = [
-            ["", "", ""],
-            ["", "", ""],
-            ["", "", ""]
-        ];
+        // Tạo board trống
+        const board = Array(9).fill(null);
         const game = { board, turn: "X", players: [message.author.id, opponent.id] };
         games.set(message.channel.id, game);
 
-        message.channel.send(`🎮 Game bắt đầu! ${message.author} (X) vs ${opponent} (O)\n\n${renderBoard(board)}\n\nX đánh trước, dùng !move hàng cột`);
-    }
+        // Tạo nút
+        const rows = createBoardButtons(board);
 
-    // Lệnh đánh lượt
-    if (message.content.startsWith('!move')) {
-        const game = games.get(message.channel.id);
-        if (!game) return;
-        if (!game.players.includes(message.author.id)) return;
+        const msg = await message.channel.send({
+            content: `🎮 Game bắt đầu! ${message.author} (X) vs ${opponent} (O)\nLượt X đánh trước`,
+            components: rows
+        });
 
-        const args = message.content.split(' ');
-        const row = parseInt(args[1])-1;
-        const col = parseInt(args[2])-1;
+        // Collector để nghe nút
+        const collector = msg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 600000 });
 
-        if (isNaN(row) || isNaN(col) || row < 0 || row > 2 || col < 0 || col > 2) 
-            return message.reply("Cú pháp sai! Dùng !move hàng cột (1-3)");
-        if (game.board[row][col]) return message.reply("Ô này đã được đánh!");
+        collector.on('collect', i => {
+            const userId = i.user.id;
+            if (!game.players.includes(userId)) return i.reply({ content: "Bạn không phải người chơi!", ephemeral: true });
+            if ((game.turn === "X" && userId !== game.players[0]) || (game.turn === "O" && userId !== game.players[1])) {
+                return i.reply({ content: "Chưa tới lượt bạn!", ephemeral: true });
+            }
 
-        game.board[row][col] = game.turn;
+            const idx = parseInt(i.customId);
+            if (game.board[idx]) return i.reply({ content: "Ô này đã đánh rồi!", ephemeral: true });
 
-        const winner = checkWin(game.board);
-        if (winner) {
-            games.delete(message.channel.id);
-            return message.channel.send(`${renderBoard(game.board)}\n\n${winner === "Tie" ? "Hoà!" : winner + " thắng!"}`);
-        }
+            // Đánh lượt
+            game.board[idx] = game.turn;
 
-        // đổi lượt
-        game.turn = game.turn === "X" ? "O" : "X";
-        message.channel.send(`${renderBoard(game.board)}\n\nLượt ${game.turn}`);
+            const winner = checkWinButtons(game.board);
+            game.turn = game.turn === "X" ? "O" : "X";
+
+            // Cập nhật nút
+            const newRows = createBoardButtons(game.board, winner);
+
+            i.update({ content: winner ? (winner==="Tie" ? "Hoà!" : winner+" thắng!") : `Lượt ${game.turn}`, components: newRows });
+
+            if (winner) collector.stop();
+        });
     }
 });
 
-// ===== Hàm hiển thị bảng =====
-function renderBoard(board) {
-    return board.map(row => row.map(cell => cell || "⬜").join("")).join("\n");
+// ===== Hàm tạo nút =====
+function createBoardButtons(board, winner) {
+    const rows = [];
+    for (let r = 0; r < 3; r++) {
+        const row = new ActionRowBuilder();
+        for (let c = 0; c < 3; c++) {
+            const idx = r*3+c;
+            row.addComponents(
+                new ButtonBuilder()
+                    .setCustomId(idx.toString())
+                    .setLabel(board[idx] || " ")
+                    .setStyle(board[idx] === "X" ? ButtonStyle.Primary : board[idx] === "O" ? ButtonStyle.Danger : ButtonStyle.Secondary)
+                    .setDisabled(!!board[idx] || !!winner)
+            );
+        }
+        rows.push(row);
+    }
+    return rows;
 }
 
-// ===== Hàm kiểm tra thắng =====
-function checkWin(board) {
-    // hàng
-    for (let row of board) if (row[0] && row[0] === row[1] && row[1] === row[2]) return row[0];
-    // cột
-    for (let i=0;i<3;i++) if (board[0][i] && board[0][i]===board[1][i] && board[1][i]===board[2][i]) return board[0][i];
-    // chéo
-    if (board[0][0] && board[0][0]===board[1][1] && board[1][1]===board[2][2]) return board[0][0];
-    if (board[0][2] && board[0][2]===board[1][1] && board[1][1]===board[2][0]) return board[0][2];
-    // hoà
-    if (board.flat().every(cell => cell)) return "Tie";
+// ===== Kiểm tra thắng =====
+function checkWinButtons(board) {
+    const winCombos = [
+        [0,1,2],[3,4,5],[6,7,8], // hàng
+        [0,3,6],[1,4,7],[2,5,8], // cột
+        [0,4,8],[2,4,6]          // chéo
+    ];
+    for (let combo of winCombos) {
+        const [a,b,c] = combo;
+        if (board[a] && board[a] === board[b] && board[b] === board[c]) return board[a];
+    }
+    if (board.every(cell => cell)) return "Tie";
     return null;
 }
+
